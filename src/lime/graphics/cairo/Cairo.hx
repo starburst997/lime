@@ -23,7 +23,6 @@ class Cairo {
 	public static var versionString (get, null):String;
 
 	public var antialias (get, set):CairoAntialias;
-	public var blendMode (get, set):CairoOperator;
 	public var currentPoint (get, never):Vector2;
 	public var dash (get, set):Array<Float>;
 	public var dashCount (get, never):Int;
@@ -569,28 +568,6 @@ class Cairo {
 
 		#if (lime_cffi && lime_cairo && !macro)
 		NativeCFFI.lime_cairo_set_antialias (handle, value);
-		#end
-
-		return value;
-
-	}
-
-
-	@:noCompletion private function get_blendMode ():CairoOperator {
-
-		#if (lime_cffi && lime_cairo && !macro)
-		return NativeCFFI.lime_cairo_get_operator (handle);
-		#end
-
-		return cast 0;
-
-	}
-
-
-	@:noCompletion private function set_blendMode (value:CairoOperator):CairoOperator {
-
-		#if (lime_cffi && lime_cairo && !macro)
-		NativeCFFI.lime_cairo_set_operator (handle, value);
 		#end
 
 		return value;
