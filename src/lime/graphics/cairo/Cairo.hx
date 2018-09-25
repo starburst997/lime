@@ -157,6 +157,17 @@ class Cairo {
 	}
 
 
+	public function getOperator ():CairoOperator {
+
+		#if (lime_cffi && lime_cairo && !macro)
+		return NativeCFFI.lime_cairo_get_operator (handle);
+		#end
+
+		return cast 0;
+
+	}
+
+
 	public function identityMatrix ():Void {
 
 		#if (lime_cffi && lime_cairo && !macro)
@@ -394,6 +405,17 @@ class Cairo {
 		#if (lime_cffi && lime_cairo && !macro)
 		NativeCFFI.lime_cairo_set_font_size (handle, size);
 		#end
+
+	}
+
+
+	public function setOperator (value:CairoOperator):CairoOperator {
+
+		#if (lime_cffi && lime_cairo && !macro)
+		NativeCFFI.lime_cairo_set_operator (handle, value);
+		#end
+
+		return value;
 
 	}
 
