@@ -5,7 +5,7 @@ import haxe.io.Bytes;
 import js.html.AnchorElement;
 import js.html.ErrorEvent;
 import js.html.Event;
-import js.html.Image in JSImage;
+import js.html.Image as JSImage;
 import js.html.ProgressEvent;
 import js.html.XMLHttpRequest;
 import js.html.XMLHttpRequestResponseType;
@@ -42,7 +42,7 @@ class HTML5HTTPRequest {
 
 	public function new () {
 
-		validStatus0 = ~/Tizen/gi.match (Browser.window.navigator.userAgent);
+		validStatus0 = #if allow_status_0 true #else ~/Tizen/gi.match (Browser.window.navigator.userAgent) #end;
 
 	}
 

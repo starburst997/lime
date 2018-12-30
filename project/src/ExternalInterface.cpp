@@ -452,6 +452,8 @@ namespace lime {
 
 	double lime_bytes_get_data_pointer_offset (value bytes, int offset) {
 
+		if (val_is_null (bytes)) return 0;
+
 		Bytes data = Bytes (bytes);
 		return (uintptr_t)data.b + offset;
 
@@ -460,6 +462,7 @@ namespace lime {
 
 	HL_PRIM double hl_lime_bytes_get_data_pointer_offset (Bytes* bytes, int offset) {
 
+		if (!bytes) return 0;
 		return (uintptr_t)bytes->b + offset;
 
 	}
@@ -1451,51 +1454,66 @@ namespace lime {
 	}
 
 
-	bool lime_font_render_glyph (value fontHandle, int index, value data) {
+	value lime_font_render_glyph (value fontHandle, int index, value data) {
 
 		#ifdef LIME_FREETYPE
 		Font *font = (Font*)val_data (fontHandle);
 		Bytes bytes (data);
-		return font->RenderGlyph (index, &bytes);
-		#else
-		return false;
+
+		if (font->RenderGlyph (index, &bytes)) {
+
+			return bytes.Value (data);
+
+		}
 		#endif
+
+		return alloc_null ();
 
 	}
 
 
-	HL_PRIM bool hl_lime_font_render_glyph (HL_CFFIPointer* fontHandle, int index, Bytes* data) {
+	HL_PRIM Bytes* hl_lime_font_render_glyph (HL_CFFIPointer* fontHandle, int index, Bytes* data) {
 
 		#ifdef LIME_FREETYPE
 		Font *font = (Font*)fontHandle->ptr;
-		return font->RenderGlyph (index, data);
-		#else
-		return false;
+
+		if (font->RenderGlyph (index, data)) {
+
+			return data;
+
+		}
 		#endif
+
+		return NULL;
 
 	}
 
 
-	bool lime_font_render_glyphs (value fontHandle, value indices, value data) {
+	value lime_font_render_glyphs (value fontHandle, value indices, value data) {
 
 		#ifdef LIME_FREETYPE
 		Font *font = (Font*)val_data (fontHandle);
 		Bytes bytes (data);
-		return font->RenderGlyphs (indices, &bytes);
-		#else
-		return false;
+
+		if (font->RenderGlyphs (indices, &bytes)) {
+
+			return bytes.Value (data);
+
+		}
 		#endif
+
+		return alloc_null ();
 
 	}
 
 
-	HL_PRIM bool hl_lime_font_render_glyphs (HL_CFFIPointer* fontHandle, hl_varray* indices, Bytes* data) {
+	HL_PRIM Bytes* hl_lime_font_render_glyphs (HL_CFFIPointer* fontHandle, hl_varray* indices, Bytes* data) {
 
 		// #ifdef LIME_FREETYPE
 		// Font *font = (Font*)fontHandle->ptr;
 		// return font->RenderGlyphs (indices, &bytes);
 		// #else
-		return false;
+		return NULL;
 		// #endif
 
 	}
@@ -2635,6 +2653,8 @@ namespace lime {
 
 	HL_PRIM vbyte* hl_lime_system_get_device_model () {
 
+		#ifndef EMSCRIPTEN
+
 		std::wstring* model = System::GetDeviceModel ();
 
 		if (model) {
@@ -2646,11 +2666,11 @@ namespace lime {
 
 			return (vbyte*)result;
 
-		} else {
-
-			return 0;
-
 		}
+
+		#endif
+
+		return 0;
 
 	}
 
@@ -2676,6 +2696,8 @@ namespace lime {
 
 	HL_PRIM vbyte* hl_lime_system_get_device_vendor () {
 
+		#ifndef EMSCRIPTEN
+
 		std::wstring* vendor = System::GetDeviceVendor ();
 
 		if (vendor) {
@@ -2687,11 +2709,11 @@ namespace lime {
 
 			return (vbyte*)result;
 
-		} else {
-
-			return 0;
-
 		}
+
+		#endif
+
+		return 0;
 
 	}
 
@@ -2717,6 +2739,8 @@ namespace lime {
 
 	HL_PRIM vbyte* hl_lime_system_get_directory (int type, hl_vstring* company, hl_vstring* title) {
 
+		#ifndef EMSCRIPTEN
+
 		std::wstring* path = System::GetDirectory ((SystemDirectory)type, company ? (char*)hl_to_utf8 ((const uchar*)company->bytes) : NULL, title ? (char*)hl_to_utf8 ((const uchar*)title->bytes) : NULL);
 
 		if (path) {
@@ -2728,11 +2752,11 @@ namespace lime {
 
 			return (vbyte*)result;
 
-		} else {
-
-			return 0;
-
 		}
+
+		#endif
+
+		return 0;
 
 	}
 
@@ -2809,6 +2833,8 @@ namespace lime {
 
 	HL_PRIM vbyte* hl_lime_system_get_platform_label () {
 
+		#ifndef EMSCRIPTEN
+
 		std::wstring* label = System::GetPlatformLabel ();
 
 		if (label) {
@@ -2820,11 +2846,11 @@ namespace lime {
 
 			return (vbyte*)result;
 
-		} else {
-
-			return 0;
-
 		}
+
+		#endif
+
+		return 0;
 
 	}
 
@@ -2850,6 +2876,8 @@ namespace lime {
 
 	HL_PRIM vbyte* hl_lime_system_get_platform_name () {
 
+		#ifndef EMSCRIPTEN
+
 		std::wstring* name = System::GetPlatformName ();
 
 		if (name) {
@@ -2861,11 +2889,11 @@ namespace lime {
 
 			return (vbyte*)result;
 
-		} else {
-
-			return 0;
-
 		}
+
+		#endif
+
+		return 0;
 
 	}
 
@@ -2891,6 +2919,8 @@ namespace lime {
 
 	HL_PRIM vbyte* hl_lime_system_get_platform_version () {
 
+		#ifndef EMSCRIPTEN
+
 		std::wstring* version = System::GetPlatformVersion ();
 
 		if (version) {
@@ -2902,11 +2932,11 @@ namespace lime {
 
 			return (vbyte*)result;
 
-		} else {
-
-			return 0;
-
 		}
+
+		#endif
+
+		return 0;
 
 	}
 
@@ -3968,8 +3998,8 @@ namespace lime {
 	DEFINE_HL_PRIM (_TCFFIPOINTER, lime_font_load_bytes, _TBYTES);
 	DEFINE_HL_PRIM (_TCFFIPOINTER, lime_font_load_file, _STRING);
 	DEFINE_HL_PRIM (_DYN, lime_font_outline_decompose, _TCFFIPOINTER _I32);
-	DEFINE_HL_PRIM (_BOOL, lime_font_render_glyph, _TCFFIPOINTER _I32 _TBYTES);
-	DEFINE_HL_PRIM (_BOOL, lime_font_render_glyphs, _TCFFIPOINTER _ARR _TBYTES);
+	DEFINE_HL_PRIM (_TBYTES, lime_font_render_glyph, _TCFFIPOINTER _I32 _TBYTES);
+	DEFINE_HL_PRIM (_TBYTES, lime_font_render_glyphs, _TCFFIPOINTER _ARR _TBYTES);
 	DEFINE_HL_PRIM (_VOID, lime_font_set_size, _TCFFIPOINTER _I32);
 	DEFINE_HL_PRIM (_VOID, lime_gamepad_add_mappings, _ARR);
 	DEFINE_HL_PRIM (_VOID, lime_gamepad_event_manager_register, _FUN(_VOID, _NO_ARG) _TGAMEPAD_EVENT);

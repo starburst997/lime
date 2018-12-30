@@ -1,3 +1,77 @@
+7.2.0 (12/03/2018)
+------------------
+
+* Improved support for Haxe 4 preview 5
+* Improved detection of HTML5 browser key codes to convert to Lime key values
+* Improved support for Turkish lowercase values in `lime.text.UTF8String`
+* Improved `HTTPRequest` with `-Dallow-status-0` to allow code 0 as success
+* Improved project XML to allow `<window background="null" />` or `"transparent"`
+* Improved `fileDialog.save` support optional MIME types on HTML5
+* Improved munit support by enabling headless testing on the AIR target
+* Improved the Electron target template with minor updates
+* Improved the standard index.html template for cases when the window is transparent
+* Improved performance when converting `lime.utils.DataPointer` on the C++ target
+* Improved support for native `Clipboard` events
+* Improved use of the `-rebuild` flag when targeting Neko on Windows
+* Fixed a memory leak when certain kinds of bytes were loaded from disk
+* Fixed a possible multi-thread crash in Lime native Bytes
+* Fixed the failure case when loading corrupted PNG images
+* Fixed an issue where `window.cursor = null` did not hide the cursor on HTML5
+* Fixed cases where the HTML5 backend attempted to cancel non-cancelable events
+* Fixed support for `Font.renderGlyph` and `Font.renderGlyphs`
+* Fixed an error in `haxe.Timer` if `System.getTimer` returned 0
+* Fixed native libraries to build with SSE3 support for better performance
+* Fixed use of the `-Ddom` define to force HTML5 DOM render mode
+
+
+7.1.1 (10/02/2018)
+------------------
+
+* Improved the timing on native `HTTPRequest` to process more quickly
+* Improved handling of `haxe.Timer` to pause and resume when the application suspends
+* Fixed `lime rebuild mac` using Xcode 10 (disabled 32-bit rebuilds by default)
+* Fixed an issue in the newer howler.js library regarding IE support
+* Fixed a regression in older desktop CPU support
+* Fixed an issue when using larger than 64-bit background color values on Flash
+* Fixed `context.antialiasing` setting on HTML5 `Window`
+
+
+7.1.0 (09/26/2018)
+------------------
+
+* Updated Harfbuzz to 1.8.8
+* Updated OpenAL to 1.19.0
+* Updated howler.js to 2.0.15
+* Updated build configuration of pixman to better support each platform
+* Added `application.meta.version` to the default application template
+* Added support for `<undefine name="" />` for undefining values
+* Added support for `<window title="" />` in project.xml
+* Renamed `cairo.operator` to `cairo.setOperator`/`getOperator` on Haxe 4 builds
+* Updated `lime.text.Font` to allow for changes to the font metric meta values
+* Removed `-Ddisplay` on `lime display` output for better cached compilation
+* Removed prefixes on `imageSmoothingEnabled` internally to remove HTML5 warnings
+* Improved use of howler.js to enable sound position
+* Improved HTML5 support for certain MP3 audio files
+* Improved `Image.loadFromBase64`/`Image.fromBase64` to work on non-HTML5 platforms
+* Fixed a possible error when processing directories ending in ".bundle"
+* Fixed an issue where multiple `HTTPRequest` instances on native could hang
+* Fixed support for `<library type="zip" />` as an alias for type "deflate"
+* Fixed minor issues in `TextField` when working with non-UTF8 `String` values
+* Fixed use of specific iOS target devices in the AIR project template
+* Fixed an exception caused in garbage collection for cURL requests
+* Fixed an issue when using `window.readPixels` on HTML5
+* Fixed possible exceptions when working with Harfbuzz languages
+* Fixed a minor encoding issue in `image.encode (BMP)`
+* Fixed setting of `window.parameters` using `WindowAttributes` on creation
+* Fixed default use of Visual Studio Community when older versions are installed
+* Fixed an exception when checking locale on certain iOS devices
+* Fixed compiler errors when using `webgl2.texImage2D` with certain parameters
+* Fixed use of WebGL 2, when available, as the default context on HTML5
+* Fixed support for `-static` native builds for Windows
+* Fixed an issue where `Assets` cache breaking was not working properly
+* Fixed compilation issues in Haxe 4 development builds
+
+
 7.0.0 (08/09/2018)
 ------------------
 

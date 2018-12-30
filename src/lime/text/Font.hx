@@ -41,15 +41,15 @@ import haxe.io.Path;
 class Font {
 
 
-	public var ascender (default, null):Int;
-	public var descender (default, null):Int;
-	public var height (default, null):Int;
+	public var ascender:Int;
+	public var descender:Int;
+	public var height:Int;
 	public var name (default, null):String;
-	public var numGlyphs (default, null):Int;
+	public var numGlyphs:Int;
 	public var src:Dynamic;
-	public var underlinePosition (default, null):Int;
-	public var underlineThickness (default, null):Int;
-	public var unitsPerEM (default, null):Int;
+	public var underlinePosition:Int;
+	public var underlineThickness:Int;
+	public var unitsPerEM:Int;
 
 	@:noCompletion private var __fontID:String;
 	@:noCompletion private var __fontPath:String;
@@ -65,6 +65,14 @@ class Font {
 			this.name = name;
 
 		}
+
+		ascender = 0;
+		descender = 0;
+		height = 0;
+		numGlyphs = 0;
+		underlinePosition = 0;
+		underlineThickness = 0;
+		unitsPerEM = 0;
 
 		if (__fontID != null) {
 
@@ -227,8 +235,9 @@ class Font {
 		//bytes.endian = (System.endianness == BIG_ENDIAN ? "bigEndian" : "littleEndian");
 
 		var dataPosition = 0;
+		bytes = NativeCFFI.lime_font_render_glyph (src, glyph, bytes);
 
-		if (NativeCFFI.lime_font_render_glyph (src, glyph, bytes)) {
+		if (bytes != null && bytes.length > 0) {
 
 			var index = bytes.getInt32 (dataPosition); dataPosition += 4;
 			var width = bytes.getInt32 (dataPosition); dataPosition += 4;
@@ -290,8 +299,9 @@ class Font {
 		NativeCFFI.lime_font_set_size (src, fontSize);
 
 		var bytes = Bytes.alloc (0);
+		bytes = NativeCFFI.lime_font_render_glyphs (src, glyphList, bytes);
 
-		if (NativeCFFI.lime_font_render_glyphs (src, glyphList, bytes)) {
+		if (bytes != null && bytes.length > 0) {
 
 			var bytesPosition = 0;
 			var count = bytes.getInt32 (bytesPosition); bytesPosition += 4;

@@ -63,7 +63,6 @@ class HTML5Window {
 	private var cacheMouseX:Float;
 	private var cacheMouseY:Float;
 	private var cursor:MouseCursor;
-	private var cursorHidden:Bool;
 	private var currentTouches = new Map<Int, Touch> ();
 	private var isFullscreen:Bool;
 	private var parent:Window;
@@ -82,11 +81,17 @@ class HTML5Window {
 
 		this.parent = parent;
 
+		cursor = DEFAULT;
 		cacheMouseX = 0;
 		cacheMouseY = 0;
 
 		var attributes = parent.__attributes;
 		if (!Reflect.hasField (attributes, "context")) attributes.context = {};
+
+		#if dom
+		attributes.context.type = DOM;
+		attributes.context.version = "";
+		#end
 
 		renderType = attributes.context.type;
 
@@ -97,11 +102,6 @@ class HTML5Window {
 		}
 
 		var element = parent.element;
-
-		#if dom
-		attributes.context.type = DOM;
-		attributes.context.version = "";
-		#end
 
 		if (Reflect.hasField (attributes, "allowHighDPI") && attributes.allowHighDPI && renderType != DOM) {
 
@@ -228,7 +228,7 @@ class HTML5Window {
 
 			// Disable image drag on Firefox
 			Browser.document.addEventListener ("dragstart", function (e) {
-				if (e.target.nodeName.toLowerCase () == "img") {
+				if (e.target.nodeName.toLowerCase () == "img" && e.cancelable) {
 					e.preventDefault ();
 					return false;
 				}
@@ -297,7 +297,7 @@ class HTML5Window {
 
 			var forceCanvas = #if (canvas || munit) true #else (renderType == CANVAS) #end;
 			var forceWebGL = #if webgl true #else (renderType == OPENGL || renderType == OPENGLES || renderType == WEBGL) #end;
-			var allowWebGL2 = #if webgl1 false #else (forceWebGL && (!Reflect.hasField (contextAttributes, "version") || contextAttributes.version != "1")) #end;
+			var allowWebGL2 = #if webgl1 false #else (!Reflect.hasField (contextAttributes, "version") || contextAttributes.version != "1") #end;
 			var isWebGL2 = false;
 
 			if (forceWebGL || (!forceCanvas && (!Reflect.hasField (contextAttributes, "hardware") || contextAttributes.hardware))) {
@@ -308,7 +308,7 @@ class HTML5Window {
 				var options = {
 
 					alpha: (transparentBackground || colorDepth > 16) ? true : false,
-					antialias: Reflect.hasField (contextAttributes, "antialiasing") ? contextAttributes.antialiasing > 0 : false,
+					antialias: Reflect.hasField (contextAttributes, "antialiasing") ? true : false,
 					depth: Reflect.hasField (contextAttributes, "depth") ? contextAttributes.depth : true,
 					premultipliedAlpha: true,
 					stencil: Reflect.hasField (contextAttributes, "stencil") ? contextAttributes.stencil : false,
@@ -440,7 +440,7 @@ class HTML5Window {
 
 			case "webglcontextlost":
 
-				event.preventDefault ();
+				if (event.cancelable) event.preventDefault ();
 
 				// #if !display
 				if (GL.context != null) {
@@ -469,7 +469,7 @@ class HTML5Window {
 
 	private function handleContextMenuEvent (event:MouseEvent):Void {
 
-		if (parent.onMouseUp.canceled) {
+		if (parent.onMouseUp.canceled && event.cancelable) {
 
 			event.preventDefault ();
 
@@ -481,7 +481,7 @@ class HTML5Window {
 	private function handleCutOrCopyEvent (event:ClipboardEvent):Void {
 
 		event.clipboardData.setData ("text/plain", Clipboard.text);
-		event.preventDefault ();
+		if (event.cancelable) event.preventDefault ();
 
 	}
 
@@ -644,7 +644,7 @@ class HTML5Window {
 
 					parent.onMouseDown.dispatch (x, y, event.button);
 
-					if (parent.onMouseDown.canceled) {
+					if (parent.onMouseDown.canceled && event.cancelable) {
 
 						event.preventDefault ();
 
@@ -656,7 +656,7 @@ class HTML5Window {
 
 						parent.onEnter.dispatch ();
 
-						if (parent.onEnter.canceled) {
+						if (parent.onEnter.canceled && event.cancelable) {
 
 							event.preventDefault ();
 
@@ -670,7 +670,7 @@ class HTML5Window {
 
 						parent.onLeave.dispatch ();
 
-						if (parent.onLeave.canceled) {
+						if (parent.onLeave.canceled && event.cancelable) {
 
 							event.preventDefault ();
 
@@ -690,7 +690,7 @@ class HTML5Window {
 
 					parent.onMouseUp.dispatch (x, y, event.button);
 
-					if (parent.onMouseUp.canceled) {
+					if (parent.onMouseUp.canceled && event.cancelable) {
 
 						event.preventDefault ();
 
@@ -703,7 +703,7 @@ class HTML5Window {
 						parent.onMouseMove.dispatch (x, y);
 						parent.onMouseMoveRelative.dispatch (x - cacheMouseX, y - cacheMouseY);
 
-						if (parent.onMouseMove.canceled || parent.onMouseMoveRelative.canceled) {
+						if ((parent.onMouseMove.canceled || parent.onMouseMoveRelative.canceled) && event.cancelable) {
 
 							event.preventDefault ();
 
@@ -731,7 +731,7 @@ class HTML5Window {
 
 			parent.onMouseWheel.dispatch (untyped event.deltaX, -untyped event.deltaY, deltaMode);
 
-			if (parent.onMouseWheel.canceled) {
+			if (parent.onMouseWheel.canceled && event.cancelable) {
 
 				event.preventDefault ();
 
@@ -755,7 +755,7 @@ class HTML5Window {
 
 			}
 
-			event.preventDefault ();
+			if (event.cancelable) event.preventDefault ();
 
 		}
 
@@ -772,7 +772,7 @@ class HTML5Window {
 
 	private function handleTouchEvent (event:TouchEvent):Void {
 
-		event.preventDefault ();
+		if (event.cancelable) event.preventDefault ();
 
 		var rect = null;
 
@@ -984,14 +984,14 @@ class HTML5Window {
 
 			if (rect.width > 0 && rect.height > 0) {
 
-				var canvas:CanvasElement = cast Browser.document.createElement ("canvas");
-				canvas.width = Std.int (rect.width);
-				canvas.height = Std.int (rect.height);
+				var canvas2:CanvasElement = cast Browser.document.createElement ("canvas");
+				canvas2.width = Std.int (rect.width);
+				canvas2.height = Std.int (rect.height);
 
-				var context = canvas.getContext ("2d");
+				var context = canvas2.getContext ("2d");
 				context.drawImage (canvas, -rect.x, -rect.y);
 
-				return Image.fromCanvas (canvas);
+				return Image.fromCanvas (canvas2);
 
 			}
 
@@ -1045,7 +1045,7 @@ class HTML5Window {
 
 			if (value == null) {
 
-				parent.element.style.cursor = null;
+				parent.element.style.cursor = "none";
 
 			} else {
 
@@ -1318,21 +1318,6 @@ class HTML5Window {
 		}
 
 		return value;
-
-	}
-
-
-	public function showCursor ():Void {
-
-		if (cursorHidden) {
-
-			cursorHidden = false;
-
-			var cacheValue = cursor;
-			cursor = null;
-			setCursor (cacheValue);
-
-		}
 
 	}
 

@@ -72,6 +72,10 @@ class WindowsPlatform extends PlatformTarget {
 
 			targetType = "java";
 
+		} else if (project.targetFlags.exists ("winrt")) {
+
+			targetType = "winrt";
+
 		} else {
 
 			targetType = "cpp";
@@ -80,7 +84,7 @@ class WindowsPlatform extends PlatformTarget {
 
 		for (architecture in project.architectures) {
 
-			if (targetType == "cpp" && architecture == Architecture.X64) {
+			if ((targetType == "cpp" || targetType == "winrt") && architecture == Architecture.X64) {
 
 				is64 = true;
 
@@ -166,7 +170,15 @@ class WindowsPlatform extends PlatformTarget {
 
 			}
 
-			if (!project.targetFlags.exists ("static") || targetType != "cpp") {
+			if (targetType == "winrt") {
+
+				for (ndll in project.ndlls) {
+
+					ProjectHelper.copyLibrary (project, ndll, "WinRT" + (is64 ? "64" : ""), "", (ndll.haxelib != null && (ndll.haxelib.name == "hxcpp" || ndll.haxelib.name == "hxlibc")) ? ".dll" : ".ndll", applicationDirectory, project.debug, null);
+
+				}
+
+			} else if (!project.targetFlags.exists ("static") || targetType != "cpp") {
 
 				var targetSuffix = (targetType == "hl") ? ".hdll" : null;
 
@@ -248,6 +260,69 @@ class WindowsPlatform extends PlatformTarget {
 				System.recursiveCopy (targetDirectory + "/obj/lib", Path.combine (applicationDirectory, "lib"));
 				System.copyFile (targetDirectory + "/obj/ApplicationMain" + (project.debug ? "-Debug" : "") + ".jar", Path.combine (applicationDirectory, project.app.file + ".jar"));
 				JavaHelper.copyLibraries (project.templatePaths, "Windows" + (is64 ? "64" : ""), applicationDirectory);
+
+			} else if (targetType == "winrt") {
+
+				var haxeArgs = [ hxml ];
+				var flags = [];
+
+				haxeArgs.push ("-D");
+				haxeArgs.push ("winrt");
+				flags.push ("-Dwinrt");
+
+				// TODO: ARM support
+
+				if (is64) {
+
+					haxeArgs.push ("-D");
+					haxeArgs.push ("HXCPP_M64");
+					flags.push ("-DHXCPP_M64");
+
+				} else {
+
+					flags.push ("-DHXCPP_M32");
+
+				}
+
+				if (!project.environment.exists ("SHOW_CONSOLE")) {
+
+					haxeArgs.push ("-D");
+					haxeArgs.push ("no_console");
+					flags.push ("-Dno_console");
+
+				}
+
+				if (!project.targetFlags.exists ("static")) {
+
+					System.runCommand ("", "haxe", haxeArgs);
+
+					if (noOutput) return;
+
+					CPPHelper.compile (project, targetDirectory + "/obj", flags);
+
+					System.copyFile (targetDirectory + "/obj/ApplicationMain" + (project.debug ? "-debug" : "") + ".exe", executablePath);
+
+				} else {
+
+					System.runCommand ("", "haxe", haxeArgs.concat ([ "-D", "static_link" ]));
+
+					if (noOutput) return;
+
+					CPPHelper.compile (project, targetDirectory + "/obj", flags.concat ([ "-Dstatic_link" ]));
+					CPPHelper.compile (project, targetDirectory + "/obj", flags, "BuildMain.xml");
+
+					System.copyFile (targetDirectory + "/obj/Main" + (project.debug ? "-debug" : "") + ".exe", executablePath);
+
+				}
+
+				var iconPath = Path.combine (applicationDirectory, "icon.ico");
+
+				if (IconHelper.createWindowsIcon (icons, iconPath) && System.hostPlatform == WINDOWS) {
+
+					var templates = [ Haxelib.getPath (new Haxelib (#if lime "lime" #else "hxp" #end)) + "/templates" ].concat (project.templatePaths);
+					System.runCommand ("", System.findTemplate (templates, "bin/ReplaceVistaIcon.exe"), [ executablePath, iconPath, "1" ], true, true);
+
+				}
 
 			} else {
 
@@ -388,7 +463,7 @@ class WindowsPlatform extends PlatformTarget {
 		var context = generateContext ();
 		context.OUTPUT_DIR = targetDirectory;
 
-		return template.execute (context) + "\n-D display";
+		return template.execute (context);
 
 	}
 
@@ -397,30 +472,16 @@ class WindowsPlatform extends PlatformTarget {
 
 		if (targetType != "winjs") {
 
-			if (project.environment.exists ("VS110COMNTOOLS") && project.environment.exists ("VS100COMNTOOLS")) {
+			// if (project.environment.exists ("VS110COMNTOOLS") && project.environment.exists ("VS100COMNTOOLS")) {
 
-				project.environment.set ("HXCPP_MSVC", project.environment.get ("VS100COMNTOOLS"));
-				Sys.putEnv ("HXCPP_MSVC", project.environment.get ("VS100COMNTOOLS"));
+				// project.environment.set ("HXCPP_MSVC", project.environment.get ("VS100COMNTOOLS"));
+				// Sys.putEnv ("HXCPP_MSVC", project.environment.get ("VS100COMNTOOLS"));
 
-			}
+			// }
 
 			var commands = [];
 
-			if (!targetFlags.exists ("32") && System.hostArchitecture == X64) {
-
-				if (targetFlags.exists ("winrt")) {
-
-					commands.push ([ "-Dwinrt", "-DHXCPP_M64" ]);
-
-				} else {
-
-					commands.push ([ "-Dwindows", "-DHXCPP_M64" ]);
-
-				}
-
-			}
-
-			if (!targetFlags.exists ("64") && (command == "rebuild" || System.hostArchitecture == X86)) {
+			if (!targetFlags.exists ("64") && (command == "rebuild" || System.hostArchitecture == X86 || (targetType != "cpp" && targetType != "winrt"))) {
 
 				if (targetFlags.exists ("winrt")) {
 
@@ -429,6 +490,24 @@ class WindowsPlatform extends PlatformTarget {
 				} else {
 
 					commands.push ([ "-Dwindows", "-DHXCPP_M32" ]);
+
+				}
+
+			}
+
+			// TODO: Compiling with -Dfulldebug overwrites the same "-debug.pdb"
+			// as previous Windows builds. For now, force -64 to be done last
+			// so that it can be debugged in a default "rebuild"
+
+			if (!targetFlags.exists ("32") && System.hostArchitecture == X64 && (command != "rebuild" || targetType == "cpp" || targetType == "winrt")) {
+
+				if (targetFlags.exists ("winrt")) {
+
+					commands.push ([ "-Dwinrt", "-DHXCPP_M64" ]);
+
+				} else {
+
+					commands.push ([ "-Dwindows", "-DHXCPP_M64" ]);
 
 				}
 

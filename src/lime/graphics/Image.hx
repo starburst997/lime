@@ -1,6 +1,7 @@
 package lime.graphics;
 
 
+import haxe.crypto.Base64;
 import haxe.crypto.BaseCode;
 import haxe.io.Bytes;
 import haxe.io.BytesData;
@@ -36,7 +37,7 @@ import lime._internal.backend.html5.HTML5HTTPRequest;
 #end
 import js.html.CanvasElement;
 import js.html.ImageElement;
-import js.html.Image in JSImage;
+import js.html.Image as JSImage;
 import js.Browser;
 #elseif flash
 import flash.display.Bitmap;
@@ -723,8 +724,11 @@ class Image {
 
 		if (bytes == null) return null;
 		var image = new Image ();
-		image.__fromBytes (bytes);
-		return image;
+		if (image.__fromBytes (bytes)) {
+			return image;
+		} else {
+			return null;
+		}
 
 	}
 
@@ -767,8 +771,11 @@ class Image {
 
 		if (path == null) return null;
 		var image = new Image ();
-		image.__fromFile (path);
-		return image;
+		if (image.__fromFile (path)) {
+			return image;
+		} else {
+			return null;
+		}
 
 	}
 
@@ -1023,7 +1030,15 @@ class Image {
 
 		#else
 
-		return cast Future.withError ("");
+		if (base64 != null) {
+
+			return loadFromBytes (Base64.decode (base64));
+
+		} else {
+
+			return cast Future.withError ("");
+
+		}
 
 		#end
 
@@ -1671,12 +1686,21 @@ class Image {
 
 		image.addEventListener ("load", image_onLoaded, false);
 		image.src = "data:" + type + ";base64," + base64;
+
+		#else
+
+		if (base64 != null) {
+
+			__fromBytes (Base64.decode (base64));
+
+		}
+
 		#end
 
 	}
 
 
-	@:noCompletion private function __fromBytes (bytes:Bytes, onload:Image->Void = null):Void {
+	@:noCompletion private function __fromBytes (bytes:Bytes, onload:Image->Void = null):Bool {
 
 		#if (js && html5)
 
@@ -1697,11 +1721,12 @@ class Image {
 			} else {
 
 				//throw "Image tried to read PNG/JPG Bytes, but found an invalid header.";
-				return;
+				return false;
 
 			}
 
 			__fromBase64 (__base64Encode (bytes), type, onload);
+			return true;
 
 		#elseif (lime_cffi && !macro)
 
@@ -1726,6 +1751,8 @@ class Image {
 
 				}
 
+				return true;
+
 			}
 
 		#else
@@ -1734,10 +1761,12 @@ class Image {
 
 		#end
 
+		return false;
+
 	}
 
 
-	@:noCompletion private function __fromFile (path:String, onload:Image->Void = null, onerror:Void->Void = null):Void {
+	@:noCompletion private function __fromFile (path:String, onload:Image->Void = null, onerror:Void->Void = null):Bool {
 
 		#if (kha && !macro)
 
@@ -1779,6 +1808,8 @@ class Image {
 						onload (this);
 
 					}
+
+					return true;
 
 				}
 
@@ -1833,6 +1864,8 @@ class Image {
 			// Another IE9 bug: loading 20+ images fails unless this line is added.
 			// (issue #1019768)
 			if (image.complete) { }
+
+			return true;
 
 		#elseif (lime_cffi || java)
 
@@ -1903,6 +1936,8 @@ class Image {
 
 				}
 
+				return true;
+
 			}
 
 		#else
@@ -1910,6 +1945,8 @@ class Image {
 			Log.warn ("Image.fromFile not supported on this target");
 
 		#end
+
+		return false;
 
 	}
 

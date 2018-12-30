@@ -7,7 +7,7 @@ class ElectronSetup {
 
 	static function main()
 	{
-		untyped (electron.main.App).commandLine.appendSwitch('ignore-gpu-blacklist', 'true');
+		electron.main.App.commandLine.appendSwitch('ignore-gpu-blacklist', 'true');
 
 		var windows:Array<OpenFLWindow> = [
 			::foreach windows::
@@ -46,6 +46,8 @@ class ElectronSetup {
 			if (height == 0) height = 600;
 			var frame:Bool = window.borderless == false;
 
+			electron.main.App.commandLine.appendSwitch('--autoplay-policy','no-user-gesture-required');
+			
 			electron.main.App.on( 'ready', function(e) {
 				var config:Dynamic = {
 					fullscreen: window.fullscreen,
@@ -64,7 +66,7 @@ class ElectronSetup {
 				});
 
 				ElectronSetup.window.loadURL( 'file://' + js.Node.__dirname + '/index.html' );
-				#if debug
+				#if (debug && !suppress_devtools)
 					ElectronSetup.window.webContents.openDevTools();
 				#end
 			});

@@ -15,6 +15,7 @@ import lime.math.RGBA;
 import lime.math.ColorMatrix;
 import lime.math.Rectangle;
 import lime.math.Vector2;
+import lime.math.Vector4;
 import lime.system.CFFI;
 import lime.system.Endian;
 import lime.utils.BytePointer;
@@ -31,7 +32,144 @@ import lime.utils.UInt8Array;
 
 
 class ImageDataUtil {
+	public static function displaceMap(
+		target:Image, source:Image, map:Image, mapPoint:Vector2,
+		componentX:Vector4, componentY:Vector4,
+		smooth:Bool
+	):Void {
+		var targetData:UInt8Array = target.buffer.data;
+		var sourceData:UInt8Array = source.buffer.data;
+		var mapData:UInt8Array = map.buffer.data;
 
+		var targetFormat:PixelFormat = target.buffer.format;
+		var sourceFormat:PixelFormat = source.buffer.format;
+		var mapFormat:PixelFormat = map.buffer.format;
+
+		var targetPremultiplied:Bool = target.premultiplied;
+		var sourcePremultiplied:Bool = source.premultiplied;
+		var mapPremultiplied:Bool = map.premultiplied;
+
+		var sourceView:ImageDataView = new ImageDataView(source);
+		var mapView:ImageDataView = new ImageDataView(map);
+
+		var row:Int;
+
+		var sourceOffset:Int;
+
+		var sourcePixel:RGBA;
+		var mapPixel:RGBA;
+		var targetPixel:RGBA;
+
+		var mapPixelX:Float;
+		var mapPixelY:Float;
+		var mapPixelA:Float;
+
+		// for bilinear smoothing
+		var s1:RGBA;
+		var s2:RGBA;
+		var s3:RGBA;
+		var s4:RGBA;
+
+		var mPointXFloor:Int;
+		var mPointYFloor:Int;
+
+		var disOffsetXFloor:Int;
+		var disOffsetYFloor:Int;
+
+		var disX:Float;
+		var disY:Float;
+
+		for (y in 0...sourceView.height) {
+			row = sourceView.row(y);
+
+			for (x in 0...sourceView.width) {
+				sourceOffset = row + (x * 4);
+
+				mPointXFloor = Std.int(mapPoint.x);
+				mPointYFloor = Std.int(mapPoint.y);
+
+				if (smooth) {
+					s1.readUInt8(mapData, sourceView.row(y - mPointYFloor + 1) + (x - mPointXFloor) * 4, mapFormat, mapPremultiplied);
+					s2.readUInt8(mapData, sourceView.row(y - mPointYFloor) + (x - mPointXFloor + 1) * 4, mapFormat, mapPremultiplied);
+					s3.readUInt8(mapData, sourceView.row(y - mPointYFloor + 1) + (x - mPointXFloor + 1) * 4, mapFormat, mapPremultiplied);
+					s4.readUInt8(mapData, sourceView.row(y - mPointYFloor) + (x - mPointXFloor) * 4, mapFormat, mapPremultiplied);
+
+					mapPixel = bilinear(
+						s1, s2, s3, s4,
+						mapPoint.x - mPointXFloor,
+						mapPoint.y - mPointYFloor
+					);
+				} else {
+					mapPixel.readUInt8(mapData, mapView.row(y - mPointYFloor) + (x - mPointXFloor) * 4, mapFormat, mapPremultiplied);
+				}
+
+				mapPixelA = mapPixel.a / 255.0;
+				mapPixelX = (((mapPixel.r - 128) / 255.0)) * mapPixelA;
+				mapPixelY = (((mapPixel.g - 128) / 255.0)) * mapPixelA;
+
+				disX = mapPixelX * componentX.x + mapPixelY * componentY.x;
+				disY = mapPixelX * componentX.y + mapPixelY * componentY.y;
+
+				disOffsetXFloor = Math.floor(disX * sourceView.width);
+				disOffsetYFloor = Math.floor(disY * sourceView.height);
+
+				if (smooth) {
+					s1.readUInt8(sourceData, sourceView.row(y + disOffsetYFloor + 1) + (x + disOffsetXFloor) * 4, sourceFormat, sourcePremultiplied);
+					s2.readUInt8(sourceData, sourceView.row(y + disOffsetYFloor) + (x + disOffsetXFloor + 1) * 4, sourceFormat, sourcePremultiplied);
+					s3.readUInt8(sourceData, sourceView.row(y + disOffsetYFloor + 1) + (x + disOffsetXFloor + 1) * 4, sourceFormat, sourcePremultiplied);
+					s4.readUInt8(sourceData, sourceView.row(y + disOffsetYFloor) + (x + disOffsetXFloor) * 4, sourceFormat, sourcePremultiplied);
+
+					sourcePixel = bilinear(
+						s1, s2, s3, s4,
+						disX * sourceView.width - disOffsetXFloor,
+						disY * sourceView.height - disOffsetYFloor
+					);
+				} else {
+					sourcePixel.readUInt8(sourceData, sourceView.row(y + disOffsetYFloor) + (x + disOffsetXFloor) * 4, sourceFormat, sourcePremultiplied);
+				}
+
+				sourcePixel.writeUInt8(targetData, sourceOffset, targetFormat, targetPremultiplied);
+			}
+		}
+
+		target.dirty = true;
+		target.version++;
+	}
+
+	// s1 = (x, y+1)
+	// s2 = (x + 1, y);
+	// s3 = (x + 1, y + 1);
+	// s4 = (x, y)
+	private static function bilinear(s1:RGBA, s2:RGBA, s3:RGBA, s4:RGBA, su:Float, sv:Float):RGBA {
+		return lerpRGBA(
+			lerpRGBA(s4, s2, su),
+			lerpRGBA(s1, s3, su),
+			sv
+		);
+	}
+
+	private static function lerpRGBA(v0:RGBA, v1:RGBA, x:Float):RGBA {
+		var result:RGBA = new RGBA();
+		result.r = Math.floor(lerp(v0.r, v1.r, x));
+		result.g = Math.floor(lerp(v0.g, v1.g, x));
+		result.b = Math.floor(lerp(v0.b, v1.b, x));
+		result.a = Math.floor(lerp(v0.a, v1.a, x));
+
+		return result;
+	}
+
+	private static function lerp4f(v0:Vector4, v1:Vector4, x:Float):Vector4 {
+		return new Vector4(
+		lerp(v0.x, v1.x, x),
+		lerp(v0.y, v1.y, x),
+		lerp(v0.z, v1.z, x),
+		lerp(v0.w, v1.w, x)
+		);
+	}
+
+	private static function lerp(v0:Float, v1:Float, x:Float):Float {
+		return (1.0 - x) * v0 + x * v1;
+	}
 
 	public static function colorTransform (image:Image, rect:Rectangle, colorMatrix:ColorMatrix):Void {
 
@@ -507,7 +645,7 @@ class ImageDataUtil {
 	}
 
 
-	public static function gaussianBlur (image:Image, sourceImage:Image, sourceRect:Rectangle, destPoint:Vector2, blurX:Float = 4, blurY:Float = 4, quality:Int = 1, strength:Float = 1):Image {
+	public static function gaussianBlur (image:Image, sourceImage:Image, sourceRect:Rectangle, destPoint:Vector2, blurX:Float = 4, blurY:Float = 4, quality:Int = 1, strength:Float = 1, color:Null<Int> = null):Image {
 
 		// TODO: Support sourceRect better, do not modify sourceImage, create C++ implementation for native
 
@@ -517,106 +655,13 @@ class ImageDataUtil {
 		if (imagePremultiplied) image.premultiplied = false;
 		if (sourceImagePremultiplied) sourceImage.premultiplied = false;
 
+		// TODO: Use ImageDataView
+
 		// if (image.buffer.premultiplied || sourceImage.buffer.premultiplied) {
 		// 	// TODO: Better handling of premultiplied alpha
 		// 	throw "Pre-multiplied bitmaps are not supported";
 
 		// }
-
-		var boxesForGauss = function (sigma:Float, n:Int):Array<Float> {
-			var wIdeal = Math.sqrt((12*sigma*sigma/n)+1);  // Ideal averaging filter width
-			var wl = Math.floor(wIdeal);
-			if (wl % 2 == 0) wl--;
-			var wu = wl+2;
-
-			var mIdeal = (12*sigma*sigma - n*wl*wl - 4*n*wl - 3*n)/(-4*wl - 4);
-			var m = Math.round(mIdeal);
-			var sizes:Array<Float> = [];
-			for (i in 0...n)
-				sizes.push( i < m ? wl : wu);
-
-			return sizes;
-		}
-
-		var boxBlurH = function (imgA:UInt8Array, imgB:UInt8Array, w:Int, h:Int, r:Int, off:Int):Void {
-			var iarr = 1 / (r+r+1);
-			for (i in 0...h) {
-				var ti = i*w, li = ti, ri = ti+r;
-				var fv = imgA[ti * 4 + off], lv = imgA[(ti+w-1) * 4 + off], val = (r+1)*fv;
-
-				for (j in 0...r)
-					val += imgA[(ti+j) * 4 + off];
-
-				for (j in 0...r+1) {
-					val += imgA[ri * 4 + off] - fv;
-					imgB[ti * 4 + off] = Math.round(val*iarr);
-					ri++;
-					ti++;
-				}
-
-				for (j in r+1...w-r) {
-					val += imgA[ri * 4 + off] - imgA[li * 4 + off];
-					imgB[ti * 4 + off] = Math.round(val*iarr);
-					ri++;
-					li++;
-					ti++;
-				}
-
-				for (j in w-r...w) {
-					val += lv - imgA[li * 4 + off];
-					imgB[ti * 4 + off] = Math.round(val*iarr);
-					li++;
-					ti++;
-				}
-			}
-		}
-
-		var boxBlurT = function (imgA:UInt8Array, imgB:UInt8Array, w:Int, h:Int, r:Int, off:Int):Void {
-			var iarr = 1 / (r+r+1);
-			var ws = w * 4;
-			for (i in 0...w) {
-				var ti = i * 4 + off, li = ti, ri = ti+(r*ws);
-				var fv = imgA[ti], lv = imgA[ti+(ws*(h-1))], val = (r+1)*fv;
-				for (j in 0...r)
-					val += imgA[ti+j*ws];
-
-				for (j in 0...r+1) {
-					val += imgA[ri] - fv;
-					imgB[ti] = Math.round(val*iarr);
-					ri+=ws; ti+=ws;
-				}
-
-				for (j in r+1...h-r) {
-					val += imgA[ri] - imgA[li];
-					imgB[ti] = Math.round(val*iarr);
-					li+=ws;
-					ri+=ws;
-					ti+=ws;
-				}
-
-				for (j in h-r...h) {
-					val += lv - imgA[li];
-					imgB[ti] = Math.round(val*iarr);
-					li+=ws;
-					ti+=ws;
-				}
-			}
-		}
-
-		var boxBlur = function (imgA:UInt8Array, imgB:UInt8Array, w:Int, h:Int, bx:Float, by:Float):Void {
-			for(i in 0...imgA.length)
-				imgB[i] = imgA[i];
-
-			boxBlurH(imgB, imgA, w, h, Std.int(bx), 0);
-			boxBlurH(imgB, imgA, w, h, Std.int(bx), 1);
-			boxBlurH(imgB, imgA, w, h, Std.int(bx), 2);
-			boxBlurH(imgB, imgA, w, h, Std.int(bx), 3);
-
-			boxBlurT(imgA, imgB, w, h, Std.int(by), 0);
-			boxBlurT(imgA, imgB, w, h, Std.int(by), 1);
-			boxBlurT(imgA, imgB, w, h, Std.int(by), 2);
-			boxBlurT(imgA, imgB, w, h, Std.int(by), 3);
-		}
 
 		var imgB = image.data;
 		var imgA = sourceImage.data;
@@ -628,50 +673,61 @@ class ImageDataUtil {
 		var oY = Std.int (destPoint.y);
 
 		var n = (quality * 2) - 1;
-		var rng = Math.pow(2, quality) * 0.125;
+		var rng = Math.pow (2, quality) * 0.125;
 
-		var bxs = boxesForGauss(bx * rng, n);
-		var bys = boxesForGauss(by * rng, n);
-		var offset:Int = Std.int( (w * oY + oX) * 4 );
+		var bxs = __getBoxesForGaussianBlur (bx * rng, n);
+		var bys = __getBoxesForGaussianBlur (by * rng, n);
+		var offset:Int = Std.int ((w * oY + oX) * 4);
 
-		boxBlur (imgA, imgB, w, h, (bxs[0]-1)/2, (bys[0]-1)/2);
+		__boxBlur (imgA, imgB, w, h, (bxs[0] - 1) / 2, (bys[0] - 1) / 2);
 		var bIndex:Int = 1;
-		for (i in 0...Std.int(n / 2)) {
-			boxBlur (imgB, imgA, w, h, (bxs[bIndex]-1)/2, (bys[bIndex]-1)/2);
-			boxBlur (imgA, imgB, w, h, (bxs[bIndex+1]-1)/2, (bys[bIndex+1]-1)/2);
 
+		for (i in 0...Std.int (n / 2)) {
+
+			__boxBlur (imgB, imgA, w, h, (bxs[bIndex] - 1) / 2, (bys[bIndex] - 1) / 2);
+			__boxBlur (imgA, imgB, w, h, (bxs[bIndex + 1] - 1) / 2, (bys[bIndex + 1] - 1) / 2);
 			bIndex += 2;
+
 		}
 
-		var x: Int;
-		var y: Int;
-		if (offset <= 0) {
-			y = 0;
-			while (y < h) {
-				x = 0;
-				while (x < w) {
-					translatePixel(imgB, sourceImage.rect, image.rect, destPoint, x, y, strength);
-					x += 1;
+		var x:Int;
+		var y:Int;
+
+		if (offset != 0 || strength != 1) {
+
+			if (offset <= 0) {
+
+				y = 0;
+				while (y < h) {
+					x = 0;
+					while (x < w) {
+						__translatePixel (imgB, sourceImage.rect, image.rect, destPoint, x, y, strength);
+						x += 1;
+					}
+					y += 1;
 				}
-				y += 1;
-			}
-		} else {
-			y = h-1;
-			while (y >= 0 ) {
-				x = w-1;
-				while (x >= 0) {
-					translatePixel(imgB, sourceImage.rect, image.rect, destPoint, x, y, strength);
-					x -= 1;
+
+			} else {
+
+				y = h - 1;
+				while (y >= 0 ) {
+					x = w-1;
+					while (x >= 0) {
+						__translatePixel (imgB, sourceImage.rect, image.rect, destPoint, x, y, strength);
+						x -= 1;
+					}
+					y -= 1;
 				}
-				y -= 1;
+
 			}
+
 		}
 
 		image.dirty = true;
 		image.version++;
 		sourceImage.dirty = true;
 		sourceImage.version++;
-		
+
 		if (imagePremultiplied) image.premultiplied = true;
 		if (sourceImagePremultiplied) sourceImage.premultiplied = true;
 
@@ -680,35 +736,6 @@ class ImageDataUtil {
 
 	}
 
-	/**
-	* Returns: the offset for translated coordinate in the source image or -1 if the source the coordinate out of the source or destination bounds
-	* Note: destX and destY should be valid coordinates
-	**/
-	inline private static function calculateSourceOffset(sourceRect:Rectangle, destPoint:Vector2,
-														 destX: Int, destY: Int): Int {
-		var sourceX: Int = destX - Std.int(destPoint.x);
-		var sourceY: Int = destY - Std.int(destPoint.y);
-		return
-			if (sourceX < 0 || sourceY < 0 || sourceX >= sourceRect.width || sourceY >= sourceRect.height) -1
-			else 4 * (sourceY * Std.int(sourceRect.width) + sourceX);
-	}
-
-	inline private static function translatePixel(imgB:UInt8Array, sourceRect:Rectangle, destRect:Rectangle,
-												  destPoint:Vector2, destX: Int, destY: Int,
-												  strength: Float) {
-		var d = 4 * (destY * Std.int(destRect.width) + destX);
-		var s = calculateSourceOffset(sourceRect, destPoint, destX, destY);
-		if (s < 0) {
-			imgB[d] = imgB[d + 1] = imgB[d + 2] = imgB[d + 3] = 0;
-		} else {
-			imgB[ d ] = imgB[ s ];
-			imgB[ d + 1 ] = imgB[ s + 1 ];
-			imgB[ d + 2 ] = imgB[ s + 2 ];
-
-			var a = Std.int(imgB[ s + 3 ] * strength);
-			imgB[ d + 3 ] = a < 0 ? 0 : (a > 255 ? 255 : a);
-		}
-	}
 
 	public static function getColorBoundsRect (image:Image, mask:Int, color:Int, findColor:Bool, format:PixelFormat):Rectangle {
 
@@ -1517,6 +1544,185 @@ class ImageDataUtil {
 	}
 
 
+	private static function __boxBlur (imgA:UInt8Array, imgB:UInt8Array, w:Int, h:Int, bx:Float, by:Float):Void {
+
+		// for(i in 0...imgA.length)
+		// 	imgB[i] = imgA[i];
+		imgB.set (imgA);
+
+		var bx = Std.int (bx);
+		var by = Std.int (by);
+
+		__boxBlurH (imgB, imgA, w, h, bx, 0);
+		__boxBlurH (imgB, imgA, w, h, bx, 1);
+		__boxBlurH (imgB, imgA, w, h, bx, 2);
+		__boxBlurH (imgB, imgA, w, h, bx, 3);
+
+		__boxBlurT (imgA, imgB, w, h, by, 0);
+		__boxBlurT (imgA, imgB, w, h, by, 1);
+		__boxBlurT (imgA, imgB, w, h, by, 2);
+		__boxBlurT (imgA, imgB, w, h, by, 3);
+
+	}
+
+
+	private static #if cpp inline #end function __boxBlurH (imgA:UInt8Array, imgB:UInt8Array, w:Int, h:Int, r:Int, off:Int):Void {
+
+		var iarr = 1 / (r + r + 1);
+		var ti, li, ri, fv, lv, val;
+
+		for (i in 0...h) {
+
+			ti = i*w;
+			li = ti;
+			ri = ti + r;
+
+			fv = imgA[ti * 4 + off];
+			lv = imgA[(ti + w - 1) * 4 + off];
+			val = (r + 1) * fv;
+
+			for (j in 0...r) {
+
+				val += imgA[(ti + j) * 4 + off];
+
+			}
+
+			for (j in 0...(r + 1)) {
+
+				val += imgA[ri * 4 + off] - fv;
+				imgB[ti * 4 + off] = Math.round (val * iarr);
+				ri++;
+				ti++;
+
+			}
+
+			for (j in (r + 1)...(w - r)) {
+
+				val += imgA[ri * 4 + off] - imgA[li * 4 + off];
+				imgB[ti * 4 + off] = Math.round (val * iarr);
+				ri++;
+				li++;
+				ti++;
+
+			}
+
+			for (j in (w - r)...w) {
+
+				val += lv - imgA[li * 4 + off];
+				imgB[ti * 4 + off] = Math.round (val * iarr);
+				li++;
+				ti++;
+
+			}
+
+		}
+
+	}
+
+
+	private static inline function __boxBlurT (imgA:UInt8Array, imgB:UInt8Array, w:Int, h:Int, r:Int, off:Int):Void {
+
+		var iarr = 1 / (r + r + 1);
+		var ws = w * 4;
+		var ti, li, ri, fv, lv, val;
+
+		for (i in 0...w) {
+
+			ti = i * 4 + off;
+			li = ti;
+			ri = ti + (r * ws);
+
+			fv = imgA[ti];
+			lv = imgA[ti + (ws * (h - 1))];
+			val = (r + 1) * fv;
+
+			for (j in 0...r) {
+
+				val += imgA[ti + (j * ws)];
+
+			}
+
+			for (j in 0...(r + 1)) {
+
+				val += imgA[ri] - fv;
+				imgB[ti] = Math.round (val * iarr);
+				ri += ws;
+				ti += ws;
+
+			}
+
+			for (j in (r + 1)...(h - r)) {
+
+				val += imgA[ri] - imgA[li];
+				imgB[ti] = Math.round (val * iarr);
+				li += ws;
+				ri += ws;
+				ti += ws;
+
+			}
+
+			for (j in (h - r)...h) {
+
+				val += lv - imgA[li];
+				imgB[ti] = Math.round (val * iarr);
+				li += ws;
+				ti += ws;
+
+			}
+
+		}
+
+	}
+
+
+	/**
+	* Returns: the offset for translated coordinate in the source image or -1 if the source the coordinate out of the source or destination bounds
+	* Note: destX and destY should be valid coordinates
+	**/
+	private static #if cpp inline #end function __calculateSourceOffset (sourceRect:Rectangle, destPoint:Vector2, destX:Int, destY:Int):Int {
+
+		var sourceX:Int = destX - Std.int (destPoint.x);
+		var sourceY:Int = destY - Std.int (destPoint.y);
+
+		var offset = 0;
+
+		if (sourceX < 0 || sourceY < 0 || sourceX >= sourceRect.width || sourceY >= sourceRect.height) {
+
+			offset = -1;
+
+		} else {
+
+			offset = 4 * (sourceY * Std.int (sourceRect.width) + sourceX);
+
+		}
+
+		return offset;
+
+	}
+
+
+	private static function __getBoxesForGaussianBlur (sigma:Float, n:Int):Array<Float> {
+
+		var wIdeal = Math.sqrt ((12 * sigma * sigma / n) + 1);  // Ideal averaging filter width
+		var wl = Math.floor (wIdeal);
+		if (wl % 2 == 0) wl--;
+		var wu = wl+2;
+
+		var mIdeal = ((12 * sigma * sigma) - (n * wl * wl) - (4 * n * wl) - (3 * n)) / ((-4 * wl) - 4);
+		var m = Math.round (mIdeal);
+		var sizes:Array<Float> = [];
+
+		for (i in 0...n) {
+
+			sizes.push (i < m ? wl : wu);
+
+		}
+
+		return sizes;
+
+	}
+
+
 	private static inline function __pixelCompare (n1:UInt, n2:UInt):Int {
 
 		var tmp1:UInt;
@@ -1565,6 +1771,29 @@ class ImageDataUtil {
 				}
 
 			}
+
+		}
+
+	}
+
+
+	private static #if cpp inline #end function __translatePixel (imgB:UInt8Array, sourceRect:Rectangle, destRect:Rectangle, destPoint:Vector2, destX:Int, destY:Int, strength:Float):Void {
+
+		var d = 4 * (destY * Std.int (destRect.width) + destX);
+		var s = __calculateSourceOffset (sourceRect, destPoint, destX, destY);
+
+		if (s < 0) {
+
+			imgB[d] = imgB[d + 1] = imgB[d + 2] = imgB[d + 3] = 0;
+
+		} else {
+
+			imgB[d] = imgB[ s ];
+			imgB[d + 1] = imgB[s + 1];
+			imgB[d + 2] = imgB[s + 2];
+
+			var a = Std.int (imgB[s + 3] * strength);
+			imgB[d + 3] = a < 0 ? 0 : (a > 255 ? 255 : a);
 
 		}
 
