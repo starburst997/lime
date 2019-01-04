@@ -1,5 +1,11 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE.md) [![Haxelib Version](https://img.shields.io/github/tag/openfl/lime.svg?style=flat&label=haxelib)](http://lib.haxe.org/p/lime) [![Build Status](https://img.shields.io/circleci/project/github/openfl/lime/develop.svg)](https://circleci.com/gh/openfl/lime)
 
+# JD - Renderer
+
+Since I have issues with OpenFL / Lime in each release, I'm now keeping a separate fork for my project, my libraries should still be compatible with upstream OpenFL / Lime.
+
+This fork is mainly for high performance on the client.
+
 Lime
 ====
 
