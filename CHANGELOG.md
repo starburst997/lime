@@ -1,4 +1,17 @@
-7.2.0 (12/03/2018)
+7.2.1 (01/07/2019)
+------------------
+
+* Updated howler.js to 2.1.0
+* Improved the internal HTTP request limit for better transfer speed on HTML5
+* Improved the performance for native HTTP requests
+* Improved the quality of embedded font meta-data on the HTML5 target
+* Improved `lime.utils.Assets` to allow disabling or setting the cache break number
+* Fixed `Window` to not dispatch `onClose` on HTML5 (due to some mobile browsers)
+* Fixed ability to cancel context menus on HTML5 when they occur on mouse down
+* Fixed font support for some video game console targets
+
+
+7.2.0 (12/04/2018)
 ------------------
 
 * Improved support for Haxe 4 preview 5
