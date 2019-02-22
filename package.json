@@ -1,6 +1,6 @@
 {
   "name": "lime",
-  "private": true,
+  "version": "0.0.1",
   "dependencies": {
     "lix": "^15.3.4"
   },
