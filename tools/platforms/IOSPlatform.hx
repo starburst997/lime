@@ -136,6 +136,11 @@ class IOSPlatform extends PlatformTarget {
 
 		var context = project.templateContext;
 
+		// Add haxedef to Template
+		for (def in project.haxedefs.keys()) {
+			Reflect.setField(context, def, project.haxedefs.get(def));
+		}
+
 		context.HAS_ICON = false;
 		context.HAS_LAUNCH_IMAGE = false;
 		context.OBJC_ARC = false;

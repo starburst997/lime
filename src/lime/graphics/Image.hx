@@ -96,6 +96,8 @@ import sys.io.File;
 
 class Image {
 
+	public var originalWidth:Int;
+	public var originalHeight:Int;
 
 	private static var __base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 	private static var __base64Encoder:BaseCode;
@@ -238,6 +240,9 @@ class Image {
 		this.offsetY = offsetY;
 		this.width = width;
 		this.height = height;
+
+		this.originalWidth = width;
+		this.originalHeight = height;
 
 		version = 0;
 
@@ -1264,6 +1269,9 @@ class Image {
 			default:
 
 		}
+
+		originalWidth = width;
+		originalHeight = height;
 
 		buffer.width = newWidth;
 		buffer.height = newHeight;

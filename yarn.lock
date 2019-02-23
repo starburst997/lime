@@ -2,7 +2,6 @@
 # yarn lockfile v1
 
 
-lix@^15.3.4:
-  version "15.3.4"
-  resolved "https://registry.yarnpkg.com/lix/-/lix-15.3.4.tgz#a743000d0eebb92d4487ac14a17cfd6ecb5dec19"
-  integrity sha512-sAu1qvzDu4p+Mr9+DIb9QuDUEQKrtR8TpdV6OtaMIgNJR8I+bWzFg7WrTn6UhrXLufA+rKxWNHDsnobuzRYh5Q==
+lix@starburst997/lix.client#develop:
+  version "15.4.0-rc.3"
+  resolved "https://codeload.github.com/starburst997/lix.client/tar.gz/3c358e87db1981ccc88f9c2740cf3b28b385959c"

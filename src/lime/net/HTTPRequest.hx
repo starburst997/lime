@@ -60,7 +60,7 @@ private class AbstractHTTPRequest<T> implements _IHTTPRequest {
 
 		contentType = "application/x-www-form-urlencoded";
 		followRedirects = true;
-		enableResponseHeaders = false;
+		enableResponseHeaders = true;
 		formData = new Map ();
 		headers = [];
 		method = GET;
