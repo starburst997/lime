@@ -1,0 +1,4 @@
+# @run: haxelib run-dir lime ${SCOPE_DIR}
+-D lime=7.0.0
+-cp src
+--macro lime._internal.macros.DefineMacro.run()

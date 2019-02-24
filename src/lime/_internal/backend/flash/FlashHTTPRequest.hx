@@ -133,11 +133,11 @@ class FlashHTTPRequest {
 
 			parent.responseStatus = event.status;
 
-			if (parent.enableResponseHeaders) {
+			/*if (parent.enableResponseHeaders) {
 
 				parent.responseHeaders = event.responseHeaders;
 
-			}
+			}*/
 
 		});
 
