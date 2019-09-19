@@ -5,8 +5,8 @@
     "lix": "^15.3.4"
   },
   "scripts": {
-    "preinstall": "mkdir -p ~/haxe",
-    "postinstall": "mkdir -p haxe_libraries; lix download;",
+    "preinstall": "",
+    "postinstall": "lix download",
     "build-mac": "cd tools; haxe run.hxml; haxe tools.hxml; cd ..; neko run rebuild ios; neko run rebuild android; neko run rebuild mac;",
     "build-windows": "cd tools; haxe run.hxml; haxe tools.hxml; cd ..; neko run rebuild windows;",
     "build-linux": "cd tools; haxe run.hxml; haxe tools.hxml; cd ..; neko run rebuild linux;"
